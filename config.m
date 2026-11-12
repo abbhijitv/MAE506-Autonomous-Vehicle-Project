@@ -26,4 +26,22 @@ cfg.disturbance_force = 1500; % N
 % actuator limits
 cfg.F_max = 6000;             % N
 cfg.F_min = -6000;            % N
+
+% bicycle model geometry and initial conditions
+cfg.L = 2.7;                  % m, wheelbase
+cfg.steering_max = deg2rad(30); % rad
+cfg.X0 = 0;                   % m
+cfg.Y0 = 0;                   % m
+cfg.psi0 = 0;                 % rad
+cfg.delta0 = 0;               % rad
+
+% reference path settings
+cfg.path_length = 300;        % m
+cfg.path_amplitude = 5;       % m
+cfg.path_wavelength = 100;    % m
+
+% constant inputs for the open-loop 2D demo
+cfg.demo_force = 1500;        % N
+cfg.demo_steering = cfg.delta0; % rad
+cfg.demo_disturbance = 0;     % N
 end
