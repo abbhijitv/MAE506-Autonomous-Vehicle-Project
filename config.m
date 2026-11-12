@@ -48,4 +48,23 @@ cfg.demo_disturbance = 0;     % N
 % small steps for linearized open-loop analysis
 cfg.analysis_force_step = 100;       % N, commanded force increment at t = 0
 cfg.analysis_disturbance_step = 100; % N, increment at disturbance_start
+
+% PID cruise control, derivative on measured speed
+cfg.pid_Kp = 900;             % N/(m/s)
+cfg.pid_Ki = 120;             % N/m
+cfg.pid_Kd = 250;             % N/(m/s^2)
+cfg.pid_filter_tau = 0.1;     % s
+
+% integral state feedback and observer pole locations
+cfg.feedback_poles = [-0.25, -0.4, -1.5]; % 1/s
+cfg.observer_poles = [-2.5, -3.5];         % 1/s
+cfg.observer_duration = 20;   % s, local test near cruise equilibrium
+cfg.observer_speed_offset = -1; % m/s, actual speed relative to equilibrium
+cfg.observer_initial_error = [-2; -500]; % m/s and N, estimate minus actual
+
+% pure pursuit at a constant longitudinal equilibrium speed
+cfg.path_speed = 10;          % m/s
+cfg.path_lookahead = 8;       % m
+cfg.path_lateral_offset = 1;  % m
+cfg.path_max_time = 1.5*cfg.path_length/cfg.path_speed; % s
 end

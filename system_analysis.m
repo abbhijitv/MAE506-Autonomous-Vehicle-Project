@@ -147,13 +147,13 @@ assert(all(isfinite([results.force_speed; results.disturbance_speed])), ...
     'Open-loop responses must be finite.');
 
 % save each plot separately
-figure_dir = fullfile(fileparts(mfilename('fullpath')), 'figures');
+figure_dir = fullfile(fileparts(mfilename('fullpath')), 'figures', 'stage2');
 if ~exist(figure_dir, 'dir')
     mkdir(figure_dir);
 end
-results.plot_files = {fullfile(figure_dir, 'stage2_force_step_response.png'), ...
-    fullfile(figure_dir, 'stage2_disturbance_response.png'), ...
-    fullfile(figure_dir, 'stage2_eigenvalues.png')};
+results.plot_files = {fullfile(figure_dir, 'force_step_response.png'), ...
+    fullfile(figure_dir, 'disturbance_response.png'), ...
+    fullfile(figure_dir, 'eigenvalues.png')};
 
 % keep figures hidden and protected from close all until export finishes
 force_fig = figure('WindowStyle', 'normal', 'Visible', 'off', 'HandleVisibility', 'off');

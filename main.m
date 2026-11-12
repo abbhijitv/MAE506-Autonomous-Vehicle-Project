@@ -82,3 +82,9 @@ fprintf('Initial pose: (%.2f, %.2f) m, heading %.2f rad\n', cfg.X0, cfg.Y0, cfg.
 
 %% Stage 2 - system analysis
 analysis = system_analysis(model, cfg);
+
+% generate the Stage 1 open-loop figures
+vehicle_2d_demo;
+
+%% Stage 3 - controller design
+stage3 = stage3_simulations(cfg, model);

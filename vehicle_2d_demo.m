@@ -5,7 +5,7 @@ x0 = [cfg.X0; cfg.Y0; cfg.psi0; cfg.v0; cfg.Fa0];
     cfg.demo_steering, cfg.demo_disturbance), cfg.t, x0);
 
 % save plots without opening figure windows
-figure_dir = fullfile(fileparts(mfilename('fullpath')), 'figures');
+figure_dir = fullfile(fileparts(mfilename('fullpath')), 'figures', 'stage1');
 if ~exist(figure_dir, 'dir')
     mkdir(figure_dir);
 end
