@@ -8,7 +8,7 @@ This project combines mathematical modeling, system analysis, and feedback contr
 
 The project includes nonlinear longitudinal dynamics and a 2D kinematic bicycle model. Planned extensions include cruise control, steering and path tracking, PID and state-feedback control, closed-loop simulations, and vehicle animation.
 
-**Current work:** Stage 1 modeling and linearization are completed and locally tested. The current demo uses constant commanded force and zero steering to demonstrate straight-line motion. Closed-loop speed control and path tracking are not implemented. Stage 2 system analysis is next.
+**Current work:** Stages 1 and 2 are completed and locally tested. The 2D demo uses constant commanded force and zero steering to demonstrate straight-line motion. Stage 2 analyzes the linearized longitudinal subsystem and its open-loop responses. Closed-loop speed control and path tracking are not implemented; Stage 3 controller design remains planned.
 
 ## Mathematical models
 
@@ -49,13 +49,13 @@ All physical parameters, initial conditions, path settings, and demo inputs are 
 | Stage | Purpose | Status | Implementation details |
 | --- | --- | --- | --- |
 | 1 — Vehicle Modeling and Linearization | Establish and verify the physical models | Completed and locally tested | Nonlinear models, equilibrium, Jacobian, state-space and transfer-function models, reference paths, open-loop demo, plots, and validation checks |
-| 2 — System Analysis | Evaluate system properties | Not implemented | `system_analysis.m` is a placeholder |
-| 3 — Controller Design | Design speed and steering feedback | Not implemented | `pid_controller.m` and `state_feedback.m` are placeholders; observer and steering control are planned |
-| 4 — Closed-Loop Simulations | Test integrated control scenarios | Not implemented | `run_simulations.m` is a placeholder; the existing open-loop demo belongs to Stage 1 |
-| 5 — Performance Analysis and Validation | Evaluate and compare control methods | Not implemented | `compare_results.m` is a placeholder |
-| 6 — Final Documentation and Presentation | Prepare final deliverables | Not implemented | Report, notes, references, and presentation files are placeholders |
+| 2 — System Analysis | Evaluate system properties | Completed and locally tested | Eigenvalues, stability, controllability, observability, Gramians, canonical forms, coordinate transformations, and open-loop responses |
+| 3 — Controller Design | Design speed and steering feedback | Planned | `pid_controller.m` and `state_feedback.m` are placeholders; observer and steering control are planned |
+| 4 — Closed-Loop Simulations | Test integrated control scenarios | Planned | `run_simulations.m` is a placeholder; the existing open-loop demo belongs to Stage 1 |
+| 5 — Performance Analysis and Validation | Evaluate and compare control methods | Planned | `compare_results.m` is a placeholder |
+| 6 — Final Documentation and Presentation | Prepare final deliverables | Planned | Report, notes, references, and presentation files are placeholders |
 
-Stage 1 local testing is reported by the project team. The source and generated PNG files are present; no new MATLAB execution was performed for this README update.
+The project team reports successful local testing of Stages 1 and 2, including the MATLAB smoke test without reported errors. All six PNG plots have been generated and reviewed. Stages 3–6 remain planned and are not implemented.
 
 ### Stage 1 — Vehicle Modeling and Linearization
 
@@ -70,11 +70,12 @@ Stage 1 local testing is reported by the project team. The source and generated 
 
 ### Stage 2 — System Analysis
 
-- [ ] Eigenvalues and stability analysis
-- [ ] Controllability and observability rank tests and Gramians
-- [ ] Controllable and observable canonical forms
-- [ ] Coordinate transformations
-- [ ] Open-loop response analysis
+- [x] Eigenvalues and stability analysis
+- [x] Controllability and observability rank tests and Gramians
+- [x] Controllable and observable canonical forms
+- [x] Numerically verified coordinate transformations and transfer-function equivalence
+- [x] Open-loop response analysis and three exported plots
+- [x] MATLAB smoke test completed without reported errors
 
 ### Stage 3 — Controller Design
 
@@ -132,7 +133,10 @@ MAE506-Autonomous-Vehicle/
 │   ├── .gitkeep
 │   ├── vehicle_trajectory.png
 │   ├── vehicle_speed.png
-│   └── vehicle_heading.png
+│   ├── vehicle_heading.png
+│   ├── stage2_force_step_response.png
+│   ├── stage2_disturbance_response.png
+│   └── stage2_eigenvalues.png
 ├── docs/
 │   ├── model_derivation.md
 │   ├── analysis_notes.md
@@ -148,22 +152,24 @@ MAE506-Autonomous-Vehicle/
 | File or folder | Purpose and current status |
 | --- | --- |
 | `config.m` | Central vehicle, simulation, disturbance, actuator, and reference-path settings |
-| `main.m` | Displays model results and runs silent equilibrium, dimension, transfer-function, and 2D checks |
+| `main.m` | Displays Stage 1 model information, runs silent model checks, and calls Stage 2 analysis |
 | `vehicle_model.m` | Two-state nonlinear cruise model, equilibrium, linearization, and Control System Toolbox models |
 | `vehicle_2d_model.m` | Five-state nonlinear bicycle dynamics with input validation |
 | `reference_path.m` | Returns straight and curved path coordinates and headings |
 | `vehicle_2d_demo.m` | Runs the open-loop simulation and exports three separate plots at 300 DPI |
 | `figures/` | Generated simulation PNG files; `.gitkeep` preserves the folder |
-| `system_analysis.m` | Empty placeholder for Stage 2 |
+| `system_analysis.m` | Analyzes the longitudinal deviation model, verifies Gramians and canonical forms, returns full numerical results, and exports three open-loop plots |
 | `pid_controller.m`, `state_feedback.m` | Empty placeholders for controller design |
 | `run_simulations.m`, `compare_results.m` | Empty placeholders for closed-loop scenarios and comparisons |
-| `tests/smoke_test.m` | Empty test placeholder; current validation checks are in `main.m` |
+| `tests/smoke_test.m` | Runs model checks and verifies poles, ranks, Lyapunov residuals, analytic step responses, and plot files |
 | `docs/`, `report/`, `presentation/` | Existing files are empty placeholders for collaborative documentation |
-| `.gitignore` | Empty placeholder for repository ignore rules |
+| `.gitignore` | Excludes MATLAB temporary files and macOS metadata; source files and simulation PNGs remain included |
 
 ## How to run
 
 Requirements: MATLAB (developed with R2026b) and Control System Toolbox.
+
+All plots are saved directly to `figures/` at 300 DPI without figure windows or popups. Figures are created invisibly and closed after successful export. Rerunning a script overwrites its corresponding PNG files.
 
 1. Open the repository folder in MATLAB and set it as the Current Folder.
 2. Run the model summary and validation checks:
@@ -172,7 +178,7 @@ Requirements: MATLAB (developed with R2026b) and Control System Toolbox.
    main
    ```
 
-   This displays vehicle parameters, cruising equilibrium, state-space matrices, the physical-coefficient transfer function, and the 2D configuration. Checks are silent when successful and raise errors on failure.
+   This displays the Stage 1 model summary followed by concise Stage 2 results and exports the three Stage 2 plots. Numerical checks are silent when successful and raise errors on failure. Full matrices, Gramians, canonical forms, transformations, and verification errors remain available in the `model` and `analysis` structures.
 
 3. Run the separate open-loop demonstration:
 
@@ -180,7 +186,15 @@ Requirements: MATLAB (developed with R2026b) and Control System Toolbox.
    vehicle_2d_demo
    ```
 
-   This simulates the vehicle with `ode45`, opens three plots, and saves them in `figures/`. Running `main` does not launch the demo. Rerunning the demo overwrites its three PNG files.
+   This simulates the vehicle with `ode45` and saves trajectory, speed, and heading PNGs in `figures/` without displaying plot windows. Running `main` does not launch the demo.
+
+4. Run the smoke test:
+
+   ```matlab
+   run('tests/smoke_test.m')
+   ```
+
+   This runs `main` and the focused numerical checks, regenerating the Stage 2 plots.
 
 ## Current simulation results
 
@@ -192,7 +206,43 @@ The generated plots are:
 - [Vehicle speed](figures/vehicle_speed.png)
 - [Vehicle heading](figures/vehicle_heading.png)
 
-The curved reference path is available, but curved-road tracking, PID control, and state-feedback control are not implemented.
+The current 2D demonstration shows straight-line motion because steering is zero. The curved reference path is available, but curved-road tracking, PID control, and state-feedback control are not implemented. Steering and path-tracking controllers are planned for Stage 3; integrated road-following simulations and moving-car animation are planned for Stage 4. The existing PNGs are static plots, not vehicle animation.
+
+## Stage 2 — System Analysis Results
+
+Stage 2 demonstrates that the two-state longitudinal deviation model is asymptotically stable, fully controllable, and fully observable around the 25 m/s cruise equilibrium. Canonical coordinate changes preserve the input-output behavior. These conclusions concern the longitudinal subsystem, not the full five-state 2D model or a closed-loop controller.
+
+| Verified result | Value |
+| --- | --- |
+| Eigenvalues (1/s) | −0.0466667 and −2.0000 |
+| Open-loop system | Asymptotically stable |
+| Controllability rank | 2/2 |
+| Observability rank | 2/2 |
+| Controllability and observability Gramians | Both positive definite |
+| Minimum controllability Gramian eigenvalue | Approximately `4.547225e-06` |
+| Minimum observability Gramian eigenvalue | Approximately `2.652548e-08` |
+| Canonical-form transformations | Numerically verified, including transfer-function equivalence |
+| MATLAB smoke test | Completed locally without reported errors, as reported by the team |
+
+The following plots are **open-loop responses**, not closed-loop controller results. Speeds are local linear predictions with equilibrium speed added back; asymptotic stability alone does not provide reference tracking or disturbance rejection.
+
+### Commanded-force response
+
+A 100 N increase in commanded force at time zero causes vehicle speed to rise from 25 m/s toward approximately 26.43 m/s.
+
+![Commanded-force step response](figures/stage2_force_step_response.png)
+
+### Disturbance response
+
+A 100 N opposing disturbance introduced at 60 seconds, with commanded force held at equilibrium, causes vehicle speed to decrease toward approximately 23.57 m/s. These values are steady-state limits rather than exact speeds at the end of the plotted interval.
+
+![Disturbance response](figures/stage2_disturbance_response.png)
+
+### Eigenvalue plot
+
+Both eigenvalues lie in the left half-plane, confirming asymptotic stability of the linearized open-loop longitudinal model.
+
+![Open-loop eigenvalues](figures/stage2_eigenvalues.png)
 
 ## Final project goals
 
@@ -204,4 +254,4 @@ The curved reference path is available, but curved-road tracking, PID control, a
 
 ## Team collaboration
 
-MATLAB source code is maintained in this GitHub repository. Teammates can review the current implementation and generated results here. Progress checklists will be updated as stages are implemented and tested. The report and presentation will be developed collaboratively, with team contributions documented in the final deliverables.
+This project is being developed collaboratively by a team of four members. The team is responsible for vehicle modeling, system analysis, controller design, MATLAB simulations, testing, and documentation.The repository tracks our implementation and progress throughout the project. Individual contributions will be documented in the final project report and README.

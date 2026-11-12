@@ -6,7 +6,7 @@ cfg = config();
 model = vehicle_model(cfg);
 
 % display the vehicle parameters
-fprintf('Vehicle parameters\n');
+fprintf('Stage 1 - Vehicle Model\n');
 fprintf('Mass: %.2f kg\n', cfg.m);
 fprintf('Linear resistance coefficient: %.2f N*s/m\n', cfg.b);
 fprintf('Quadratic drag coefficient: %.2f N*s^2/m^2\n', cfg.c);
@@ -39,24 +39,19 @@ assert(all(abs(num - expected_num) < 1e-9*max(1, norm(expected_num, inf))), ...
     'Transfer function numerator does not match the derived model.');
 
 % display the equilibrium and deviation model
-fprintf('Cruising equilibrium\n');
-fprintf('Speed: %.2f m/s\n', model.x_eq(1));
-fprintf('Actuator force: %.2f N\n', model.x_eq(2));
-fprintf('Commanded force: %.2f N\n', model.u_eq);
-fprintf('Disturbance force: %.2f N\n\n', model.d_eq);
+fprintf('Cruise equilibrium: %.2f m/s, %.2f N actuator/commanded force\n\n', ...
+    model.x_eq(1), model.u_eq);
 fprintf('State-space matrices (deviation model)\n');
-fprintf('A =\n'); disp(model.A);
-fprintf('B =\n'); disp(model.B);
-fprintf('C =\n'); disp(model.C);
-fprintf('D =\n'); disp(model.D);
-fprintf('E =\n'); disp(model.E);
+fprintf('A = [%.6e  %.6e;\n     %.6e  %.6e]\n', model.A.');
+fprintf('B = [%.6e; %.6e]\n', model.B);
+fprintf('C = [%g  %g]\n', model.C);
+fprintf('D = %g\n\n', model.D);
 
 % display the transfer function with physical coefficients
 v_eq = model.x_eq(1);
 den = [cfg.m*cfg.tau, ...
        cfg.m + cfg.tau*(cfg.b + 2*cfg.c*abs(v_eq)), ...
        cfg.b + 2*cfg.c*abs(v_eq)];
-fprintf('Transfer function\n');
 fprintf('G(s) = 1 / (%.6g*s^2 %+.6g*s %+.6g)\n', den(1), den(2), den(3));
 
 % check the 2D dynamics at straight cruising motion
@@ -81,9 +76,9 @@ assert(isequal(model.C, [1, 0]) && model.D == 0, 'Cruise output matrices changed
 assert(norm(model.E - [-1/cfg.m; 0], inf) < 1e-10, 'Cruise disturbance matrix changed.');
 
 % display the 2D configuration
-fprintf('\n2D vehicle model\n');
-fprintf('Wheelbase: %.2f m\n', cfg.L);
-fprintf('Maximum steering angle: %.2f deg\n', rad2deg(cfg.steering_max));
-fprintf('Initial position: (%.2f, %.2f) m\n', cfg.X0, cfg.Y0);
-fprintf('Initial heading: %.2f rad\n', cfg.psi0);
-fprintf('Number of states: %d\n', numel(x_2d));
+fprintf('\n2D bicycle model: %d states, wheelbase %.2f m, steering limit %.2f deg\n', ...
+    numel(x_2d), cfg.L, rad2deg(cfg.steering_max));
+fprintf('Initial pose: (%.2f, %.2f) m, heading %.2f rad\n', cfg.X0, cfg.Y0, cfg.psi0);
+
+%% Stage 2 - system analysis
+analysis = system_analysis(model, cfg);

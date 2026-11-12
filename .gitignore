@@ -1,0 +1,8 @@
+# MATLAB temporary files
+*.asv
+*.m~
+*.autosave
+
+# macOS metadata
+.DS_Store
+__MACOSX/

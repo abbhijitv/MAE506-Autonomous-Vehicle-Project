@@ -44,4 +44,8 @@ cfg.path_wavelength = 100;    % m
 cfg.demo_force = 1500;        % N
 cfg.demo_steering = cfg.delta0; % rad
 cfg.demo_disturbance = 0;     % N
+
+% small steps for linearized open-loop analysis
+cfg.analysis_force_step = 100;       % N, commanded force increment at t = 0
+cfg.analysis_disturbance_step = 100; % N, increment at disturbance_start
 end
