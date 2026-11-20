@@ -10,13 +10,13 @@ This project models longitudinal vehicle motion and compares exactly two speed c
 
 ## Getting Started
 
-Requirements: **MATLAB R2026b** and **Control System Toolbox**. Set MATLAB's Current Folder to the repository's `code/` folder and run:
+Requirements: **MATLAB R2026b** and **Control System Toolbox**. Set MATLAB's Current Folder to the repository root and run:
 
 ```matlab
-main
+run('code/main.m')
 ```
 
-Run the project checks in a fresh MATLAB session or batch mode:
+If the local-only `tests/` folder is available, run the project checks in a fresh MATLAB session or batch mode. Tests are excluded from GitHub:
 
 ```matlab
 run('tests/smoke_test.m')
@@ -24,23 +24,23 @@ run('tests/smoke_test.m')
 
 Running `main` saves exactly six files in `results/`: five numbered PNGs at 300 DPI and `simulation_results.txt`. The folder is created automatically, and all six files are overwritten with the current run results. In interactive MATLAB sessions, the five comparison figures remain visible. In `-batch` runs, they stay hidden and close after export. Rerunning the comparison closes only its previously tagged figure windows, leaving unrelated figures alone.
 
-All active MATLAB code and tests are in `code/`. The six output files remain in the repository-root `results/` folder, regardless of the current working folder. Numerical results remain available in `model`, `analysis`, `controller`, and `results`. No archive folders need to be added to the MATLAB path.
+MATLAB application code is in `code/`. The top-level `tests/` folder is local only and excluded from Git. The six output files remain in the repository-root `results/` folder, regardless of the current working folder. Numerical results remain available in `model`, `analysis`, `controller`, and `results`. No archive folders need to be added to the MATLAB path.
 
 ### Original Standalone Script
 
 To run Ankit's original work independently:
 
 ```matlab
-cruisecontrol_minimalcode4
+run('code/cruisecontrol_minimalcode4.m')
 ```
 
 This is the exact original script, including its original system analysis, phase portrait, response plots, comments, reference gain, and formatting. It contains `clear` and `close all`, so run it separately from the final comparison; it resets the workspace and closes existing figures. `main` never executes this script. The standalone script's original plots and scaling are separate from the five final comparison outputs.
 
-From the repository root, the equivalent batch commands are:
+From the repository root, the comparison can also run in batch mode. The second command requires the local-only test folder:
 
 ```bash
 /Applications/MATLAB_R2026b.app/bin/matlab -batch "run('code/main.m')"
-/Applications/MATLAB_R2026b.app/bin/matlab -batch "run('code/tests/smoke_test.m')"
+/Applications/MATLAB_R2026b.app/bin/matlab -batch "run('tests/smoke_test.m')"
 ```
 
 ## Longitudinal Vehicle Model
@@ -129,7 +129,7 @@ Defaults are `Kp = 900`, `Ki = 120`, `Kd = 250`, and a 0.1 s derivative-filter t
 
 ### Ankit's Pole-Placement State Feedback
 
-**`code/cruisecontrol_minimalcode4.m` is restored byte for byte to the original script**, matching Git history and the byte-preserved reference `code/tests/fixtures/cruisecontrol_minimalcode4.original`. It is not a function and has not been edited to integrate it with `main`.
+**`code/cruisecontrol_minimalcode4.m` is restored byte for byte to the original script**, matching Git history and the local byte-preserved reference `tests/fixtures/cruisecontrol_minimalcode4.original`. It is not a function and has not been edited to integrate it with `main`.
 
 For the comparison only, `code/control_simulations.m` reproduces the same specifications, pole calculations, and `place` call using the shared model. It returns the computed design in `controller`, without calling the original script or adding a separate controller file.
 
@@ -226,8 +226,8 @@ The report is opened in overwrite mode and closed using a function-scoped cleanu
 | `code/pid_controller.m` | Existing PID implementation, unchanged |
 | `code/cruisecontrol_minimalcode4.m` | Exact original standalone script; run separately from `main` |
 | `code/control_simulations.m` | Minimal design integration, shared nonlinear simulations, five result figures, and metrics |
-| `code/tests/smoke_test.m` | Model, reference-scaling, comparison-condition, tracking, and export checks |
-| `code/tests/fixtures/` | Original controller reference bytes used only by the preservation tests |
+| `tests/smoke_test.m` | Local-only model, tracking, and export checks; excluded from Git |
+| `tests/fixtures/` | Local-only controller reference bytes; excluded from Git |
 | `results/` | Exactly five numbered PNGs and `simulation_results.txt` |
 | `archive/previous_project/` | Local-only historical source and notes, excluded from Git |
 | `archive/previous_project/figures/` | Local-only prior plot outputs, excluded from Git |
@@ -237,12 +237,12 @@ Do not add `archive/` recursively to the MATLAB path: its historical functions d
 
 ## Testing
 
-The updated smoke test runs `main` and checks the expected matrices, equilibrium, transfer function, eigenvalues, controllability, observability, Lyapunov residuals, corrected unity reference scaling, and absence of state-feedback integral action. It verifies common initial states/references/time grids, finite histories, commanded and actual force bounds, PID anti-windup, final tracking, and metric consistency. Sampled plant steps are cross-checked against `ode45`. The pole-placement gains are independently checked from the original performance specifications. The original standalone script and PID source are compared with the byte-preserved reference files in `code/tests/fixtures/`, so this test also works in a fresh clone without the local archive. Exactly the five named PNGs and numerical text report must exist in `results/`, with no extra files. Report matrices and metrics are checked against the current calculated values, file-update times are checked for the current run, and the report must be closed after writing. Batch figures must close; interactive comparison figures must remain visible.
+The updated smoke test runs `main` and checks the expected matrices, equilibrium, transfer function, eigenvalues, controllability, observability, Lyapunov residuals, corrected unity reference scaling, and absence of state-feedback integral action. It verifies common initial states/references/time grids, finite histories, commanded and actual force bounds, PID anti-windup, final tracking, and metric consistency. Sampled plant steps are cross-checked against `ode45`. The pole-placement gains are independently checked from the original performance specifications. The original standalone script and PID source are compared with the byte-preserved reference files in `tests/fixtures/`, without depending on the archive. The tests and fixtures remain local and are not included in a GitHub clone. Exactly the five named PNGs and numerical text report must exist in `results/`, with no extra files. Report matrices and metrics are checked against the current calculated values, file-update times are checked for the current run, and the report must be closed after writing. Batch figures must close; interactive comparison figures must remain visible.
 
-From the `code/` folder, run locally before using the final comparison in the report:
+With the local-only tests available, run these commands from the repository root before using the final comparison in the report:
 
 ```matlab
-main
+run('code/main.m')
 run('tests/smoke_test.m')
 ```
 

@@ -3,3 +3,4 @@ archive/
 *.autosave
 .DS_Store
 .vscode/
+tests/
