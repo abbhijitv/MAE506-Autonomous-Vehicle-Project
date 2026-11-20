@@ -6,7 +6,7 @@ cfg = config();
 model = vehicle_model(cfg);
 
 % display the vehicle parameters
-fprintf('Stage 1 - Vehicle Model\n');
+fprintf('Autonomous Vehicle Cruise Control\n');
 fprintf('Mass: %.2f kg\n', cfg.m);
 fprintf('Linear resistance coefficient: %.2f N*s/m\n', cfg.b);
 fprintf('Quadratic drag coefficient: %.2f N*s^2/m^2\n', cfg.c);
@@ -54,37 +54,156 @@ den = [cfg.m*cfg.tau, ...
        cfg.b + 2*cfg.c*abs(v_eq)];
 fprintf('G(s) = 1 / (%.6g*s^2 %+.6g*s %+.6g)\n', den(1), den(2), den(3));
 
-% check the 2D dynamics at straight cruising motion
-x_2d = [cfg.X0; cfg.Y0; 0; model.x_eq];
-dx_2d = vehicle_2d_model(cfg, x_2d, model.u_eq, 0, model.d_eq);
-assert(isequal(size(dx_2d), [5, 1]), '2D derivatives must be 5x1.');
-assert(abs(dx_2d(3)) < 1e-10, 'Zero steering must give zero heading rate.');
-assert(abs(dx_2d(1) - x_2d(4)) < 1e-10 && abs(dx_2d(2)) < 1e-10, ...
-    'At zero heading, velocity must be along the X axis.');
-assert(all(abs(dx_2d(4:5) - dx_eq) < 1e-10), ...
-    '2D longitudinal dynamics must match the cruise subsystem.');
-
-% check reference paths and the original cruise matrices
-paths = reference_path(cfg);
-assert(all(paths.straight.Y == 0), 'Straight path must have zero Y coordinates.');
-assert(all(isfinite([paths.curved.X, paths.curved.Y, paths.curved.psi])), ...
-    'Curved path coordinates and headings must be finite.');
-expected_A = [-drag_slope/cfg.m, 1/cfg.m; 0, -1/cfg.tau];
-assert(norm(model.A - expected_A, inf) < 1e-10, 'Cruise A matrix changed.');
-assert(norm(model.B - [0; 1/cfg.tau], inf) < 1e-10, 'Cruise B matrix changed.');
-assert(isequal(model.C, [1, 0]) && model.D == 0, 'Cruise output matrices changed.');
-assert(norm(model.E - [-1/cfg.m; 0], inf) < 1e-10, 'Cruise disturbance matrix changed.');
-
-% display the 2D configuration
-fprintf('\n2D bicycle model: %d states, wheelbase %.2f m, steering limit %.2f deg\n', ...
-    numel(x_2d), cfg.L, rad2deg(cfg.steering_max));
-fprintf('Initial pose: (%.2f, %.2f) m, heading %.2f rad\n', cfg.X0, cfg.Y0, cfg.psi0);
-
-%% Stage 2 - system analysis
+% analyze the vehicle
 analysis = system_analysis(model, cfg);
+[results, controller] = control_simulations(cfg, model);
 
-% generate the Stage 1 open-loop figures
-vehicle_2d_demo;
+% save numerical results
+results.report_file = fullfile(fileparts(mfilename('fullpath')), 'results', 'simulation_results.txt');
+save_results(results.report_file, cfg, model, analysis, controller, results);
+saved_files = dir(fileparts(results.report_file));
+saved_files = saved_files(~[saved_files.isdir]);
+assert(numel(saved_files) == 6 && all(cellfun(@isfile, [results.plot_files, {results.report_file}])), ...
+    'Results must contain exactly five PNGs and simulation_results.txt.');
 
-%% Stage 3 - controller design
-stage3 = stage3_simulations(cfg, model);
+function save_results(filename, cfg, model, analysis, controller, results)
+[fid, message] = fopen(filename, 'w');
+assert(fid ~= -1, 'Cannot open numerical results: %s', message);
+file_cleanup = onCleanup(@() fclose(fid));
+
+fprintf(fid, 'Autonomous Vehicle Cruise Control\n');
+fprintf(fid, 'Generated: %s\n\n', datestr(results.run_started, 'yyyy-mm-dd HH:MM:SS.FFF'));
+fprintf(fid, 'Vehicle Parameters\n');
+fprintf(fid, 'Mass: %.6f kg\n', cfg.m);
+fprintf(fid, 'Linear resistance: %.6f N*s/m\n', cfg.b);
+fprintf(fid, 'Quadratic drag: %.6f N*s^2/m^2\n', cfg.c);
+fprintf(fid, 'Actuator time constant: %.6f s\n', cfg.tau);
+fprintf(fid, 'Initial speed: %.6f m/s\n', cfg.v0);
+fprintf(fid, 'Initial actuator force: %.6f N\n', cfg.Fa0);
+fprintf(fid, 'Reference speed: %.6f m/s\n', cfg.v_ref);
+fprintf(fid, 'Duration: %.6f s\n', cfg.t_end);
+fprintf(fid, 'Time step: %.6f s\n', cfg.dt);
+fprintf(fid, 'Command limits: %.6f to %.6f N\n', cfg.F_min, cfg.F_max);
+
+% equilibrium and model
+v_eq = model.x_eq(1);
+drag_force = cfg.b*v_eq + cfg.c*v_eq*abs(v_eq);
+fprintf(fid, '\nCruise Equilibrium\n');
+fprintf(fid, 'Equilibrium speed: %.6f m/s\n', v_eq);
+fprintf(fid, 'Equilibrium drag force: %.6f N\n', drag_force);
+fprintf(fid, 'Equilibrium actuator force: %.6f N\n', model.x_eq(2));
+fprintf(fid, 'Equilibrium command: %.6f N\n', model.u_eq);
+fprintf(fid, 'Equilibrium opposing force: %.6f N\n', model.d_eq);
+fprintf(fid, '\nState-Space Model\n');
+fprintf(fid, 'States: speed (m/s), actual actuator force (N).\n');
+fprintf(fid, 'Input: commanded actuator force (N). Output: speed (m/s).\n');
+fprintf(fid, 'Linear matrices describe deviations from cruise equilibrium.\n');
+write_values(fid, 'A', model.A);
+write_values(fid, 'B', model.B);
+write_values(fid, 'C', model.C);
+write_values(fid, 'D', model.D);
+write_values(fid, 'Optional disturbance matrix E', model.E);
+
+[num, den] = tfdata(model.tf, 'v');
+fprintf(fid, '\nTransfer Function\n');
+fprintf(fid, 'Command-force deviation to speed deviation; descending powers of s.\n');
+write_values(fid, 'Numerator', num);
+write_values(fid, 'Denominator', den);
+scale = cfg.m*cfg.tau/den(1);
+write_values(fid, 'Physical numerator', num*scale);
+write_values(fid, 'Physical denominator', den*scale);
+
+fprintf(fid, '\nOpen-Loop Analysis\n');
+write_values(fid, 'Open-loop eigenvalues (1/s)', analysis.poles);
+fprintf(fid, 'Open-loop stability: %s\n', stability_text(analysis.poles));
+write_values(fid, 'Controllability matrix', analysis.controllability);
+fprintf(fid, 'Controllability rank: %d/%d\n', analysis.controllability_rank, size(model.A, 1));
+write_values(fid, 'Observability matrix', analysis.observability);
+fprintf(fid, 'Observability rank: %d/%d\n', analysis.observability_rank, size(model.A, 1));
+if ~isempty(analysis.Wc)
+    write_values(fid, 'Controllability Gramian', analysis.Wc);
+    write_values(fid, 'Observability Gramian', analysis.Wo);
+    write_values(fid, 'Controllability Gramian eigenvalues', analysis.Wc_eigenvalues);
+    write_values(fid, 'Observability Gramian eigenvalues', analysis.Wo_eigenvalues);
+    write_values(fid, 'Lyapunov residuals', analysis.gramian_residuals);
+end
+fprintf(fid, 'Controllable-form similarity error: %.9e\n', analysis.controllable_form.similarity_error);
+fprintf(fid, 'Controllable-form transfer-function error: %.9e\n', analysis.controllable_form.tf_error);
+fprintf(fid, 'Observable-form similarity error: %.9e\n', analysis.observable_form.similarity_error);
+fprintf(fid, 'Observable-form transfer-function error: %.9e\n', analysis.observable_form.tf_error);
+
+fprintf(fid, '\nPID Controller\n');
+fprintf(fid, 'Kp: %.6f N/(m/s)\n', cfg.pid_Kp);
+fprintf(fid, 'Ki: %.6f N/m\n', cfg.pid_Ki);
+fprintf(fid, 'Kd: %.6f N/(m/s^2)\n', cfg.pid_Kd);
+fprintf(fid, 'Derivative filter time constant: %.6f s\n', cfg.pid_filter_tau);
+fprintf(fid, '\nState-Feedback Controller\n');
+fprintf(fid, 'Settling-time specification: %.6f s\n', cfg.feedback_settling_time);
+fprintf(fid, 'Overshoot specification: %.6f %%\n', cfg.feedback_overshoot);
+write_values(fid, 'Desired state-feedback poles (1/s)', controller.desiredPoles);
+write_values(fid, 'State-feedback gain K', controller.K);
+fprintf(fid, 'Reference gain: %.9e N/(m/s)\n', controller.Gain);
+fprintf(fid, 'Reference gain applies to the comparison only.\n');
+write_values(fid, 'Closed-loop eigenvalues (1/s)', controller.poles);
+fprintf(fid, 'Closed-loop stability: %s (linearized, unsaturated)\n', stability_text(controller.poles));
+
+% measured performance
+names = {'PID', 'State feedback'};
+metrics = {results.pid.metrics, results.state_feedback.metrics};
+for i = 1:2
+    metric = metrics{i};
+    fprintf(fid, '\n%s Performance\n', names{i});
+    fprintf(fid, 'Rise time: %.6f s\n', metric.rise_time);
+    fprintf(fid, 'Settling time: %.6f s\n', metric.settling_time);
+    fprintf(fid, 'Overshoot: %.6f %%\n', metric.overshoot);
+    fprintf(fid, 'Steady-state error: %.9e m/s\n', metric.steady_state_error);
+    fprintf(fid, 'Peak actuator command: %.6f N\n', metric.peak_control);
+end
+fprintf(fid, '\nPerformance Comparison\n');
+fprintf(fid, '%-16s %12s %14s %14s %20s %18s\n', ...
+    'Controller', 'Rise (s)', 'Settling (s)', 'Overshoot (%)', 'SS error (m/s)', 'Peak command (N)');
+for i = 1:2
+    metric = metrics{i};
+    fprintf(fid, '%-16s %12.6f %14.6f %14.6f %20.9e %18.6f\n', names{i}, ...
+        metric.rise_time, metric.settling_time, metric.overshoot, ...
+        metric.steady_state_error, metric.peak_control);
+end
+fprintf(fid, '\nMetric Definitions\n');
+fprintf(fid, 'Rise time: first sampled %.1f%% to %.1f%% crossings of the requested speed change.\n', ...
+    100*cfg.rise_limits);
+fprintf(fid, 'Settling time: last exit from the %.1f%% tracking band, followed by one sample.\n', ...
+    100*cfg.settling_threshold);
+fprintf(fid, 'Steady-state error: target minus mean speed over the final %.6f s.\n', cfg.steady_state_window);
+fprintf(fid, 'Peak command uses the actual saturated command, not actuator-force state.\n');
+fprintf(fid, 'Plot speeds are absolute vehicle speeds; the linear model uses deviations.\n');
+fprintf(fid, 'State-feedback specifications describe the unsaturated linear design.\n');
+fprintf(fid, 'NaN response times indicate an unreached threshold or an unsettled response.\n');
+[message, error_code] = ferror(fid);
+assert(error_code == 0, 'Cannot write numerical results: %s', message);
+clear file_cleanup;
+end
+
+function write_values(fid, name, values)
+fprintf(fid, '%s:\n', name);
+for row = 1:size(values, 1)
+    for column = 1:size(values, 2)
+        value = values(row, column);
+        if isreal(value)
+            fprintf(fid, '  %.9e', value);
+        else
+            fprintf(fid, '  %.9e%+.9ei', real(value), imag(value));
+        end
+    end
+    fprintf(fid, '\n');
+end
+end
+
+function text = stability_text(poles)
+if all(real(poles) < 0)
+    text = 'Asymptotically stable';
+elseif any(real(poles) > 0)
+    text = 'Unstable';
+else
+    text = 'Zero-real-part poles; not asymptotically stable, further analysis required';
+end
+end

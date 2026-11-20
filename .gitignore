@@ -1,8 +1,6 @@
-# MATLAB temporary files
+archive/
+tests/
 *.asv
-*.m~
 *.autosave
-
-# macOS metadata
 .DS_Store
-__MACOSX/
+.vscode/

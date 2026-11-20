@@ -1,80 +1,81 @@
-# Modeling and Control of an Autonomous Vehicle Using Cruise Control and 2D Path Tracking
+# Autonomous Vehicle Cruise Control — PID vs. State-Feedback Control
 
 **MAE 506 — Advanced System Modeling, Dynamics and Control**
 
 ## Overview
 
-This project investigates mathematical modeling, system analysis, and feedback control for an autonomous vehicle. It combines nonlinear longitudinal dynamics with a 2D kinematic bicycle model to study speed regulation and road following in MATLAB.
+This project models longitudinal vehicle motion and compares exactly two speed controllers: the existing PID implementation in `pid_controller.m` and Ankit Dhara's pole-placement state-feedback design, preserved in the standalone script `cruisecontrol_minimalcode4.m`. Both operate on the same nonlinear vehicle model under identical reference, initial-state, time-grid, actuator, and force-limit conditions.
 
-State feedback with pole placement and integral action is the primary course-related controller. PID cruise control, a Luenberger observer, and pure-pursuit steering provide additional control and estimation demonstrations. The current speed-control, observer, and steering demonstrations are separate; integrated driving scenarios and moving-car animation remain future work.
+`main.m` is the single entry point. It displays the model, performs system analysis, runs the controller comparison, exports figures, and prints performance metrics. Earlier project code and outputs are preserved in `archive/` and are not used by the final program.
 
 ## Getting Started
 
-Requirements: **MATLAB R2026b** and **Control System Toolbox**. After cloning or downloading the repository, open MATLAB and set its Current Folder to the repository root.
+Requirements: **MATLAB R2026b** and **Control System Toolbox**. Set MATLAB's Current Folder to the repository root and run:
 
 ```matlab
-main                         % Run Stages 1–3 and export all twelve plots
-vehicle_2d_demo               % Run only the Stage 1 open-loop demonstration
-run('tests/smoke_test.m')      % Run main and the numerical/export checks
+main
 ```
 
-The Stage 1 demo is already included in `main`; its separate command is useful for reviewing that model alone. To run only Stage 3, use:
+Run the project checks in a fresh MATLAB session or batch mode:
 
 ```matlab
-stage3 = stage3_simulations();
+run('tests/smoke_test.m')
 ```
 
-Full numerical results remain available in `model`, `analysis`, and `stage3` after running `main`.
+Running `main` saves exactly six files in `results/`: five numbered PNGs at 300 DPI and `simulation_results.txt`. The folder is created automatically, and all six files are overwritten with the current run results. In interactive MATLAB sessions, the five comparison figures remain visible. In `-batch` runs, they stay hidden and close after export. Rerunning the comparison closes only its previously tagged figure windows, leaving unrelated figures alone.
 
-All PNGs are exported automatically at **300 DPI** under `figures/stage1/`, `figures/stage2/`, and `figures/stage3/`. Figures remain invisible and are closed after export. Rerunning a stage overwrites its corresponding PNGs.
+Numerical results remain available in `model`, `analysis`, `controller`, and `results`. No archive folders need to be added to the MATLAB path.
 
-## Project Objectives
+### Original Standalone Script
 
-- Develop nonlinear longitudinal dynamics, including resistance, aerodynamic drag, and actuator lag, and a 2D kinematic bicycle model.
-- Derive cruise equilibria and linearized state-space and transfer-function models.
-- Analyze stability, controllability, observability, Gramians, and equivalent canonical forms of the longitudinal SISO model.
-- Design speed controllers and automatic steering, then evaluate tracking, disturbance response, and state estimation through MATLAB simulations.
-- Extend the implementation to integrated longitudinal and lateral control, vehicle animation, formal controller comparison, and robustness analysis in later stages.
+To run Ankit's original work independently:
 
-These objectives address the course requirements for physical modeling, system analysis, feedback design, and evaluation of dynamic response and steady-state tracking.
+```matlab
+cruisecontrol_minimalcode4
+```
 
-## Implementation Status
+This is the exact original script, including its original system analysis, phase portrait, response plots, comments, reference gain, and formatting. It contains `clear` and `close all`, so run it separately from the final comparison; it resets the workspace and closes existing figures. `main` never executes this script. The standalone script's original plots and scaling are separate from the five final comparison outputs.
 
-| Stage | Status | Scope |
-| --- | --- | --- |
-| 1 — Vehicle Modeling | Completed | Nonlinear longitudinal and 2D models, cruise equilibrium, Jacobian linearization, reference paths, and open-loop demonstration |
-| 2 — System Analysis | Completed | Eigenvalues, stability, controllability, observability, Gramians, canonical forms, transformations, and open-loop responses |
-| 3 — Controller Design | Completed | Integral state feedback, PID cruise control, a separate observer demonstration, and straight/curved pure-pursuit tracking |
-| 4 — Integrated Simulation and Animation | Planned | Unified speed and steering control, driving scenarios, and moving-car animation |
-| 5 — Performance Analysis and Validation | Planned | Controller comparison, response metrics, robustness, and further stability analysis |
-| 6 — Final Documentation and Presentation | Planned | Final code review, report, presentation, demonstration, and contribution records |
+## Longitudinal Vehicle Model
 
-## System Modeling
-
-### Longitudinal model
+The original nonlinear equations are unchanged:
 
 ```text
 m*dv/dt = Fa - b*v - c*v*abs(v) - d
 tau*dFa/dt = -Fa + u
 ```
 
-The two states are speed `v` (m/s) and actual actuator force `Fa` (N). The input `u` is commanded drive/braking force, and `d` is opposing longitudinal disturbance force. Parameters `m`, `b`, `c`, and `tau` represent mass, linear resistance, quadratic drag, and actuator time constant.
+The state is `x = [v; Fa]`, where `v` is absolute vehicle speed in m/s and `Fa` is actual actuator force in N. The input `u` is commanded drive/braking force in N. Actuator lag means `Fa` generally differs from `u` during transients. The optional opposing force `d` remains part of the model; the final comparison uses `d = d_eq = 0` without disturbance steps.
 
-| Parameter | Default value |
+| Setting | Default |
 | --- | --- |
 | Vehicle mass, `m` | 1500 kg |
 | Linear resistance, `b` | 50 N·s/m |
 | Quadratic drag coefficient, `c` | 0.4 N·s²/m² |
 | Actuator time constant, `tau` | 0.5 s |
+| Reference and linearization speed | 25 m/s |
+| Initial speed and actuator force | 0 m/s and 0 N |
+| Simulation duration and time step | 120 s and 0.01 s |
+| Commanded-force limits | −6000 to +6000 N |
 
-The model is linearized about constant-speed cruising. With `delta_x = x - x_eq`, `delta_u = u - u_eq`, and `delta_y = y - y_eq`, the primary state-space representation is:
+All settings are defined centrally in `config.m`. They are illustrative modeling assumptions, not experimentally validated vehicle parameters.
+
+### Equilibrium and Linearization
 
 ```text
+Fa_eq = b*v_eq + c*v_eq*abs(v_eq) + d_eq
+u_eq = Fa_eq
+x_eq = [v_eq; Fa_eq]
+
+delta_x = x - x_eq
+delta_u = u - u_eq
+delta_y = y - v_eq
+
 delta_x_dot = A*delta_x + B*delta_u
 delta_y = C*delta_x + D*delta_u
 ```
 
-For the cruising speed `v_eq`, the Jacobian matrices are:
+At the default equilibrium, `x_eq = [25; 1500]` and `u_eq = 1500 N`. The force-to-speed SISO linearization is:
 
 ```text
 A = [-(b + 2*c*abs(v_eq))/m, 1/m;
@@ -82,259 +83,170 @@ A = [-(b + 2*c*abs(v_eq))/m, 1/m;
 B = [0; 1/tau]
 C = [1, 0]
 D = 0
-```
 
-An optional disturbance-input term `E*delta_d` can be added to the state equation, where `delta_d = d - d_eq`. Here `E = [-1/m; 0]`, or `[-1/1500; 0]` with defaults, describes how opposing force reduces acceleration. Standard stability, controllability, and observability analysis uses `A`, `B`, `C`, and `D` for this longitudinal linearization; it does not establish those properties for the complete nonlinear 2D vehicle model.
-
-With the default cruising speed of 25 m/s and zero disturbance, the equilibrium actuator and commanded forces are both 1500 N:
-
-```text
 G(s) = 1 / (750*s^2 + 1535*s + 70)
 ```
 
-### 2D kinematic bicycle model
+The optional disturbance matrix is `E = [-1/m; 0]`, acting on `delta_d = d - d_eq`. Standard stability, controllability, and observability analysis uses `A`, `B`, `C`, and `D`. Plotting adds equilibrium values back so speed axes show absolute m/s, not deviations.
 
-```text
-dX/dt = v*cos(psi)
-dY/dt = v*sin(psi)
-dpsi/dt = (v/L)*tan(delta)
+## System Analysis
 
-Combined states: [X; Y; psi; v; Fa]
-Commanded inputs: [u; delta]
-```
+`system_analysis.m` retains the existing eigenvalue, controllability, observability, Gramian, and canonical-form calculations. Similarity transformations and transfer-function equivalence are checked numerically. It does not create figures. The original phase portrait remains available only by running the preserved standalone script separately.
 
-`X` and `Y` are global rear-axle coordinates (m), `psi` is heading (rad), `L` is wheelbase (m), and `delta` is the front-wheel steering angle (rad). The five-state model retains the same longitudinal equations. The separate two-state subsystem remains available for SISO cruise-control analysis.
-
-Reference paths include a straight road, `Y = 0`, and a sinusoidal road, `Y = A*sin(2*pi*X/lambda)`, with headings calculated from their slopes. Generating a path does not make the vehicle follow it.
-
-All physical parameters, initial conditions, path settings, and demo inputs are configured in `config.m`. Defaults are illustrative modeling assumptions, not experimentally validated vehicle parameters.
-
-## Control Methods
-
-### State Feedback with Integral Action
-
-The primary course-related controller uses vehicle speed and actuator force to calculate a driving/braking force command. Pole placement assigns the linearized closed-loop dynamics, and integral action corrects remaining steady-state speed error. The controller is applied to the nonlinear longitudinal plant using actual states.
-
-### PID Cruise Control
-
-PID provides an additional practical speed-control approach using proportional, integral, and derivative action. The derivative is calculated from filtered measured speed, avoiding a reference derivative kick. For a fixed speed target, speed change corresponds to the negative rate of error change.
-
-Both cruise controllers include equilibrium/feedforward force, the original actuator lag, ±6000 N command limits, and conditional-integration anti-windup. These illustrative limits correspond to at most 4 m/s² acceleration before resistance at rest. A formal PID-versus-state-feedback comparison under identical scenarios has not yet been completed.
-
-### Luenberger Observer
-
-The observer estimates vehicle speed and actuator force from measured speed and known commanded force using the observable longitudinal linearization. It is demonstrated separately and is not part of the current state-feedback loop.
-
-### Pure-Pursuit Path Tracking
-
-Pure pursuit selects a point ahead on the reference path and calculates steering toward it. It supports straight and sinusoidal roads, with an 8 m lookahead, a 1 m initial lateral offset, and a ±30° steering limit.
-
-The path demonstration maintains a constant 10 m/s forward speed by initializing actuator force at its 540 N equilibrium and holding that command. It stops one lookahead distance before the path endpoint. Speed and steering controllers are not yet integrated. The kinematic model assumes a rear-axle reference point and excludes tire slip, steering actuator lag, sensor noise, and road disturbances.
-
-### Controller Parameters
-
-| Demonstration | Design |
+| Property | Default result |
 | --- | --- |
-| Integral state feedback | Poles `[-0.25, -0.4, -1.5]`, `Kx ≈ [732.633, 0.0516667]`, `Ki = -112.5` |
-| PID cruise control | `Kp = 900`, `Ki = 120`, `Kd = 250`, derivative filter time constant 0.1 s |
-| Luenberger observer | Poles `[-2.5, -3.5]`, `L ≈ [3.95333; 1125]` |
-| Pure pursuit | 8 m lookahead, constant 10 m/s forward speed, 1 m initial lateral offset |
-
-All gains and scenario parameters are defined in `config.m`. Equations and design details are provided in [controller notes](docs/controller_notes.md).
-
-## Simulation Results
-
-### Stage 1 — Vehicle Modeling
-
-With the default configuration, the vehicle starts from rest at `(0, 0)` with zero heading and actuator force. A constant 1500 N command and zero disturbance cause speed to approach 25 m/s gradually; the demo does not impose instantaneous speed tracking. Zero steering keeps the heading at zero and produces a straight trajectory along positive X.
-
-| Plot | What to look for |
-| --- | --- |
-| [vehicle_trajectory.png](figures/stage1/vehicle_trajectory.png) | Shows the vehicle's X/Y position. Its straight path demonstrates forward motion with zero steering. |
-| [vehicle_speed.png](figures/stage1/vehicle_speed.png) | Shows speed over time under constant commanded force. The gradual approach to 25 m/s demonstrates the vehicle and actuator dynamics without feedback control. |
-| [vehicle_heading.png](figures/stage1/vehicle_heading.png) | Shows heading over time. Heading stays at zero because the steering command is zero. |
-
-### Stage 2 — System Analysis
-
-Stage 2 demonstrates that the two-state longitudinal deviation model is asymptotically stable, fully controllable, and fully observable around the 25 m/s cruise equilibrium. Canonical coordinate changes preserve the input-output behavior. These conclusions concern the longitudinal subsystem, not the full five-state 2D model or a closed-loop controller.
-
-| Verified result | Value |
-| --- | --- |
-| Eigenvalues (1/s) | −0.0466667 and −2.0000 |
-| Open-loop system | Asymptotically stable |
+| Open-loop eigenvalues | −0.0466667 and −2 s⁻¹ |
+| Open-loop equilibrium | Asymptotically stable |
 | Controllability rank | 2/2 |
 | Observability rank | 2/2 |
-| Controllability and observability Gramians | Both positive definite |
+| Controllability and observability Gramians | Positive definite |
 | Minimum controllability Gramian eigenvalue | Approximately `4.547225e-06` |
 | Minimum observability Gramian eigenvalue | Approximately `2.652548e-08` |
-| Canonical-form transformations | Numerically verified, including transfer-function equivalence |
+| Canonical forms | Numerically verified |
 
-The following plots are **open-loop responses**, not closed-loop controller results. Speeds are local linear predictions with equilibrium speed added back; asymptotic stability alone does not provide reference tracking or disturbance rejection.
+These properties apply to the longitudinal linearization about the cruise equilibrium. They do not establish global stability of the nonlinear plant with force saturation.
 
-#### Commanded-force response
+## Controllers
 
-`force_step_response.png` shows speed over time after a 100 N increase in commanded force at time zero. Speed rises from 25 m/s toward approximately 26.43 m/s, demonstrating the open-loop response to added driving force.
+### Existing PID Controller
 
-![Commanded-force step response](figures/stage2/force_step_response.png)
+`pid_controller.m` is preserved without changing its code or gains. It uses equilibrium/feedforward force, a filtered measured-speed derivative, force saturation, and conditional-integration anti-windup.
 
-#### Disturbance response
+```text
+e = v_ref - v
+F_ff = b*v_ref + c*v_ref*abs(v_ref) + d_eq
+u_raw = F_ff + Kp*e + Ki*z - Kd*v_dot_filtered
+```
 
-`disturbance_response.png` shows speed after a 100 N opposing disturbance at 60 seconds while commanded force stays at equilibrium. Speed decreases toward approximately 23.57 m/s, showing that this open-loop system does not restore the target speed; these values are steady-state limits rather than exact end-of-plot speeds.
+Defaults are `Kp = 900`, `Ki = 120`, `Kd = 250`, and a 0.1 s derivative-filter time constant. The integral updates only when speed error does not drive the command farther into saturation.
 
-![Disturbance response](figures/stage2/disturbance_response.png)
+### Ankit's Pole-Placement State Feedback
 
-#### Eigenvalue plot
+**`cruisecontrol_minimalcode4.m` is restored byte for byte to the original script**, matching Git history and `archive/previous_project/cruisecontrol_minimalcode4.m`. It is not a function and has not been edited to integrate it with `main`.
 
-`eigenvalues.png` places the two open-loop eigenvalues in the complex plane. Both lie in the left half-plane, confirming asymptotic stability of the linearized longitudinal model.
+For the comparison only, `control_simulations.m` reproduces the same specifications, pole calculations, and `place` call using the shared model. It returns the computed design in `controller`, without calling the original script or adding a separate controller file.
 
-![Open-loop eigenvalues](figures/stage2/eigenvalues.png)
+```text
+Settling_Time = 2 s
+Overshoot = 7.5 percent
+OS = Overshoot/100
+zeta = -log(OS)/sqrt(pi^2 + log(OS)^2)
+wn = 4/(zeta*Settling_Time)
+desiredPoles = -zeta*wn +/- 1i*wn*sqrt(1-zeta^2)
+K = place(A, B, desiredPoles)
+Acl = A - B*K
+```
 
-### Stage 3 — Controller Design
+The resulting desired poles are approximately `-2 +/- 2.425690i` s⁻¹. With defaults, `K ≈ [7274.612521, 0.9766667]` and the corrected reference gain is approximately `7412.979188` N/(m/s).
 
-The following plots show the separate nonlinear cruise-control, observer, and path-tracking demonstrations.
+The command uses actual states consistently with the deviation model:
 
-| Plot | What to look for |
+```text
+u_raw = u_eq - K*(x - x_eq) + Gain*(v_ref - v_eq)
+u = min(max(u_raw, F_min), F_max)
+```
+
+There is **no integral action** in this controller. The previous integral state-feedback implementation is archived and is not called by the final project.
+
+#### Reference-Gain Correction
+
+The original script still uses, unchanged:
+
+```matlab
+Gain = -OpenLoop_Gain/((C*(Acl^-1)*B));
+```
+
+That makes the reference-to-speed DC gain equal to `OpenLoop_Gain`, about `1/70`, rather than unity. Only the integration block in `control_simulations.m` uses corrected reference scaling, with a linear solve instead of an explicit inverse:
+
+```matlab
+Gain = -1/(C*(Acl\B));
+```
+
+For the existing `D = 0` model, this gives unity steady-state reference tracking in the linearization. It does not guarantee exact nonlinear tracking for every reference far from the chosen equilibrium. The default target equals the equilibrium speed, so both controllers have the same physical 25 m/s objective.
+
+The 2 s settling time and 7.5% overshoot are unsaturated linear design specifications, not promised results for acceleration from rest with force limits. Final comparison metrics are calculated from the actual nonlinear simulation histories.
+
+## Simulation and Performance Metrics
+
+`control_simulations.m` reuses the earlier sampled nonlinear cruise simulation and RK4 integration. Each command is held constant for one 0.01 s sample. Both controllers start at `[v0; Fa0] = [0; 0]` and run for 120 s with the same ±6000 N limits. The open-loop comparison uses the same initial states and plant, with a constant target-equilibrium force of 1500 N; it has no feedback.
+
+| Metric | Common definition |
 | --- | --- |
-| [state_feedback_tracking.png](figures/stage3/state_feedback_tracking.png) | Compares desired and actual speed, with commanded force below. It demonstrates speed convergence using state feedback with integral action while respecting the force limits. |
-| [pid_speed_tracking.png](figures/stage3/pid_speed_tracking.png) | Compares desired and actual speed as the vehicle accelerates from rest. It demonstrates PID bringing the speed toward the 25 m/s target. |
-| [pid_disturbance_rejection.png](figures/stage3/pid_disturbance_rejection.png) | Shows desired and actual speed with the uphill disturbance marked at 60 s. The temporary speed drop and recovery demonstrate PID disturbance rejection. |
-| [observer_estimation.png](figures/stage3/observer_estimation.png) | Compares actual and estimated speed and actuator force in two panels. Estimates approach the actual states despite intentionally incorrect initial estimates. |
-| [path_tracking.png](figures/stage3/path_tracking.png) | Compares the reference road and actual trajectory, which nearly overlap. The vertical scale is exaggerated for readability so the road curvature is easier to see. |
-| [steering_angle.png](figures/stage3/steering_angle.png) | The solid blue line is the commanded steering angle; dashed lines show the ±30° steering limits. The command stays within those limits while guiding the vehicle along the road. |
+| Rise time | Time between the first sampled 10% and 90% crossings of the requested change from initial speed to target |
+| Settling time | First sample after the last excursion outside ±2% of the requested speed change |
+| Overshoot | Peak excess beyond the target, as a percentage of the requested speed change; minimum 0% |
+| Steady-state error | Target minus mean absolute vehicle speed over the final 5 s; a signed value in m/s |
+| Peak control input | Maximum absolute commanded force `u`, in N; not actual actuator force `Fa` |
 
-The PID disturbance test introduces 1500 N opposing force at 60 s. The observer test starts at 24 m/s with actual force 1500 N and initial estimates of 22 m/s and 1000 N; its command stays at equilibrium. Small nonlinear-model mismatch leaves finite-time estimation residuals.
+Unreached rise thresholds or an unsettled response produce `NaN` time metrics rather than an invented result. Default-case smoke tests require finite metrics and final-window tracking within 0.05 m/s.
 
-The path-tracking RMS result includes the initial lateral-offset correction over the complete run. Reference and actual trajectories nearly overlap; the normally −10 to +10 m vertical range is visually exaggerated without changing the trajectory or error calculation.
+### Current Validation Status
 
-| Result | Value |
+The revised `main` and smoke test still require local MATLAB execution. The installed executable fails at startup in the coding environment with the known Qt/NEON processor error, before any project code runs. Thus the new MATLAB plots and runtime results have not been generated or verified here.
+
+Independent NumPy simulations of the same default nonlinear equations and sampled commands give the following preliminary cross-checks. These are **not MATLAB test results** and do not replace the local smoke test:
+
+| Controller | Rise time (s) | Settling time (s) | Overshoot (%) | Steady-state error (m/s) | Peak command (N) |
+| --- | --- | --- | --- | --- | --- |
+| PID | 5.90 | 15.77 | 2.848 | Approximately 0 | 6000 |
+| Ankit state feedback | 5.75 | 7.50 | 0.617 | Approximately 0 | 6000 |
+
+## Saved Results
+
+On a working MATLAB installation, `main` saves exactly the following five PNGs and one plain-text report under `results/`. It does not export a phase portrait or a sixth plot. Previous output files are preserved under `archive/previous_project/` and are not substitutes for these comparison outputs.
+
+| Output | Content |
 | --- | --- |
-| State-feedback final speed error | Approximately 0 m/s |
-| PID final speed error | Approximately 0 m/s |
-| PID final speed error with uphill disturbance | Approximately 0.0001 m/s |
-| Observer final speed estimation error | `9.656e-06 m/s` |
-| Observer final actuator-force estimation error | `-5.697e-03 N` |
-| Curved-path lateral RMS error over the complete run | 0.1467 m |
+| `results/01_pid_speed_tracking.png` | PID absolute vehicle speed and the desired speed reference |
+| `results/02_state_feedback_speed_tracking.png` | State-feedback absolute vehicle speed and the desired reference |
+| `results/03_pid_vs_state_feedback.png` | Both controlled speeds and the common reference |
+| `results/04_open_loop_vs_closed_loop.png` | Open-loop and state-feedback speed on the same physical scale |
+| `results/05_control_effort.png` | Both saturated actuator commands `u` in N, with the common force limits |
+| `results/simulation_results.txt` | Current-run parameters, equilibrium, matrices, transfer coefficients, system analysis, controller design, individual metrics, and comparison table |
 
-## Testing and Validation
+The plain-text report includes units and scientific notation for small values. It records open- and closed-loop classifications, full controllability/observability matrices and ranks, PID gains, state-feedback specifications and poles, the feedback/reference gains, and all five performance metrics for both controllers. Values come from the current MATLAB run, not from the preliminary table above. Its simple headings and aligned text can be selected and copied into Google Docs.
 
-Stages 1–3 have been implemented and validated locally using MATLAB R2026b. The commands `main`, `vehicle_2d_demo`, and `run('tests/smoke_test.m')` executed successfully, and the smoke test completed without errors.
-
-The existing checks cover:
-
-- **Model consistency:** equilibrium derivatives, matrix dimensions, transfer-function coefficients, finite Stage 1 state histories, and agreement between longitudinal and 2D derivatives at straight cruising equilibrium.
-- **System analysis:** expected eigenvalues and ranks, Gramian Lyapunov equations, canonical similarity transformations, transfer-function equivalence, and open-loop responses against analytic solutions.
-- **Controller behavior:** finite simulation histories, commanded-force limits, conditional anti-windup during saturation, speed convergence, and PID recovery after the opposing-force disturbance.
-- **Estimation and steering:** observer convergence near equilibrium, steering limits, forward motion, constant path speed, and lateral tracking error.
-- **Exports and cleanup:** twelve nonempty PNGs in their stage folders, valid README plot links, no obsolete root PNGs, and no remaining figure windows.
-
-Acceptance limits include final-five-second speed errors below 0.05 m/s and overshoot below 10%. Observer errors over 15–20 s must be below 0.001 m/s and 1 N. After the first 30 m, path-error RMS must be below 0.5 m and peak error below 0.75 m. Validation covers these demonstrations and the local linear-model properties; broader nonlinear stability, robustness, and integrated control evaluation remain future work.
-
-Run the smoke test in a fresh MATLAB session or batch mode because it requires no figures to remain open. Failed checks raise an error; successful checks are silent apart from the stage summaries. All twelve linked plots are MATLAB-generated exports.
+The report is opened in overwrite mode and closed using a function-scoped cleanup handler, including when an error interrupts writing. A run timestamp and file-update checks help detect stale outputs. Unexpected extra files cause validation to fail rather than being silently deleted.
 
 ## Repository Structure
 
-```text
-MAE506-Autonomous-Vehicle/
-├── README.md
-├── .gitignore
-├── config.m
-├── main.m
-├── vehicle_model.m
-├── vehicle_2d_model.m
-├── reference_path.m
-├── vehicle_2d_demo.m
-├── system_analysis.m
-├── pid_controller.m
-├── state_feedback.m
-├── observer_controller.m
-├── path_tracking_controller.m
-├── stage3_simulations.m
-├── run_simulations.m
-├── compare_results.m
-├── tests/
-│   └── smoke_test.m
-├── figures/
-│   ├── .gitkeep
-│   ├── stage1/
-│   │   ├── vehicle_trajectory.png
-│   │   ├── vehicle_speed.png
-│   │   └── vehicle_heading.png
-│   ├── stage2/
-│   │   ├── force_step_response.png
-│   │   ├── disturbance_response.png
-│   │   └── eigenvalues.png
-│   └── stage3/
-│       ├── pid_speed_tracking.png
-│       ├── pid_disturbance_rejection.png
-│       ├── state_feedback_tracking.png
-│       ├── observer_estimation.png
-│       ├── path_tracking.png
-│       └── steering_angle.png
-├── docs/
-│   ├── model_derivation.md
-│   ├── analysis_notes.md
-│   ├── controller_notes.md
-│   └── results_notes.md
-├── report/
-│   ├── report_draft.md
-│   └── references.txt
-└── presentation/
-    └── slide_outline.txt
-```
-
-| File or folder | Purpose and current status |
+| File or folder | Purpose |
 | --- | --- |
-| `config.m` | Central vehicle, simulation, disturbance, actuator, and reference-path settings |
-| `main.m` | Runs completed-stage model checks, Stage 2 analysis, and Stage 3 demonstrations; exports all twelve plots |
-| `vehicle_model.m` | Speed and actuator-force equations, cruise equilibrium, and linear state-space/transfer-function models |
-| `vehicle_2d_model.m` | Adds position and heading motion to the longitudinal vehicle equations |
-| `reference_path.m` | Returns straight and curved path coordinates and headings |
-| `vehicle_2d_demo.m` | Runs the open-loop simulation and exports three separate plots at 300 DPI |
-| `figures/` | Stage-specific PNG folders; future outputs will use `stage4/` and `stage5/` |
-| `system_analysis.m` | Checks stability, controllability, observability, Gramians, and equivalent model forms; exports three plots |
-| `pid_controller.m` | Calculates the PID force command with filtering, force limits, and anti-windup |
-| `state_feedback.m` | Designs the primary speed controller using pole placement and integral action |
-| `observer_controller.m` | Designs the observer that estimates speed and actuator force |
-| `path_tracking_controller.m` | Pure-pursuit steering and signed lateral-error calculation |
-| `stage3_simulations.m` | Runs the separate controller/observer demonstrations, returns their histories, and exports six plots |
-| `run_simulations.m`, `compare_results.m` | Empty placeholders for closed-loop scenarios and comparisons |
-| `tests/smoke_test.m` | Checks Stages 1–3, saturation, anti-windup, tracking, observer error, path error, plot paths, and figure closure |
-| `docs/controller_notes.md` | Controller equations, gains, assumptions, tuning evidence, and validation limits |
-| Other `docs/` files, `report/`, `presentation/` | Empty placeholders for collaborative documentation |
-| `.gitignore` | Excludes MATLAB temporary files and macOS metadata; source files and simulation PNGs remain included |
+| `main.m` | Single entry point for modeling, analysis, comparison, and metrics |
+| `config.m` | Shared physical parameters, controller specifications, and metric settings |
+| `vehicle_model.m` | Unchanged nonlinear longitudinal plant, equilibrium, and linear models |
+| `system_analysis.m` | System-property checks and retained Gramians/canonical forms; no figure exports |
+| `pid_controller.m` | Existing PID implementation, unchanged |
+| `cruisecontrol_minimalcode4.m` | Exact original standalone script; run separately from `main` |
+| `control_simulations.m` | Minimal design integration, shared nonlinear simulations, five result figures, and metrics |
+| `tests/smoke_test.m` | Model, reference-scaling, comparison-condition, tracking, and export checks |
+| `results/` | Exactly five numbered PNGs and `simulation_results.txt` |
+| `archive/previous_project/` | Original source, comments, configuration, README, tests, and earlier notes |
+| `archive/previous_project/figures/` | Preserved prior local plot outputs |
+| `report/`, `presentation/` | Existing draft placeholders for the final deliverables |
 
-## Future Work
+Do not add `archive/` recursively to the MATLAB path: its historical functions deliberately retain their original names.
 
-### Stage 4 — Integrated Simulation and Animation
+## Testing
 
-- Integrate longitudinal speed control and lateral steering in one nonlinear 2D simulation.
-- Simulate straight and curved roads with reference-speed changes and disturbances.
-- Create a moving-car animation and integrated simulation visualizations.
+The updated smoke test runs `main` and checks the expected matrices, equilibrium, transfer function, eigenvalues, controllability, observability, Lyapunov residuals, corrected unity reference scaling, and absence of state-feedback integral action. It verifies common initial states/references/time grids, finite histories, commanded and actual force bounds, PID anti-windup, final tracking, and metric consistency. Sampled plant steps are cross-checked against `ode45`. The pole-placement gains are independently checked from the original performance specifications. The original standalone script and PID source are compared with their archived copies. Exactly the five named PNGs and numerical text report must exist in `results/`, with no extra files. Report matrices and metrics are checked against the current calculated values, file-update times are checked for the current run, and the report must be closed after writing. Batch figures must close; interactive comparison figures must remain visible.
 
-### Stage 5 — Performance Analysis and Validation
+Run locally before using the final comparison in the report:
 
-- Compare PID and state feedback under consistent scenarios.
-- Evaluate rise time, settling time, overshoot, steady-state error, and control effort.
-- Test robustness to changes in vehicle mass and drag.
-- Consider Lyapunov stability analysis where appropriate.
-
-### Stage 6 — Final Documentation and Presentation
-
-- Complete the final MATLAB code review and technical report.
-- Prepare the presentation and project demonstration.
-- Finalize documentation, references, figures, and contribution records.
+```matlab
+main
+run('tests/smoke_test.m')
+```
 
 ## Team and Contributions
 
-The project is developed by four students. The following table defines **planned assignments across the full project**, including future work; it is not a verified record of historical contributions.
+The project has four members. Ankit Dhara's state-feedback contribution remains identifiable in `cruisecontrol_minimalcode4.m`; the existing PID contribution remains unchanged in `pid_controller.m`. The earlier complete responsibility plan is preserved in `archive/previous_project/README.md`. The following report and presentation assignments describe the final cruise-control scope rather than a verified history of every code change.
 
-| Team Member | Technical Responsibilities | Final Report Responsibilities | Presentation Responsibilities |
+| Team Member | Technical Focus | Final Report | Presentation |
 | --- | --- | --- | --- |
-| Abbhijit Venkatachalam | Longitudinal and 2D vehicle modeling; equilibrium and linearization; integrated speed and steering simulation; integration testing | Introduction; system modeling; mathematical equations and assumptions | Project overview; vehicle modeling; mathematical model explanation |
-| Logan Deison | Stability analysis; controllability and observability; Gramians and canonical forms; mathematical verification; robustness analysis | System analysis; stability and validation results | System analysis; stability, controllability, and observability; mathematical results |
-| Tyler Winter | PID and state-feedback controllers; pole placement and integral action; controller tuning; performance comparisons | Controller design; performance evaluation | Controller design; PID and state-feedback methods; performance comparison results |
-| Ankit Dhara | Pure-pursuit steering; reference-path generation; Luenberger observer; moving-car animation; simulation visualization | Simulation results; discussion; conclusions | Path tracking; vehicle animation; simulation results and conclusions |
+| Abbhijit Venkatachalam | Longitudinal modeling, project integration, and integration testing | Introduction, system modeling, equations and assumptions | Project overview and vehicle model |
+| Logan Deison | Stability, controllability, observability, Gramians, canonical forms, and mathematical verification | System analysis and validation results | System properties and mathematical results |
+| Tyler Winter | PID control, tuning analysis, and controller performance comparisons | Controller design and performance evaluation | PID method and comparison results |
+| Ankit Dhara | Pole-placement state-feedback controller and simulation visualization | Simulation results, discussion, and conclusions | State-feedback method, simulation results, and conclusions |
 
-All four members share MATLAB coding and implementation, debugging and testing, technical documentation, review of the complete report, preparation of the final presentation, and review of the final deliverables.
-
-The planned workload is approximately equal, with each member contributing about 25% overall and preparing and presenting approximately one-quarter of the presentation. Final-report writing should also be balanced across the four members. Responsibilities involving integration, animation, robustness, or final deliverables remain planned until those tasks are completed.
+All four members share MATLAB implementation, debugging, testing, technical documentation, report review, presentation preparation, and final-deliverable review. The intended overall workload is approximately 25% per member, with balanced report writing and about one-quarter of the presentation each. These assignments do not imply that unperformed work is complete.

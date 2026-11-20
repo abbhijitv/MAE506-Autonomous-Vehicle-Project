@@ -11,7 +11,7 @@ assert(isequal(size(A), [2, 2]) && isequal(size(B), [2, 1]) ...
 assert(all(isfinite([A(:); B(:); C(:); D; model.E(:)])), ...
     'Model matrices must be finite.');
 
-fprintf('\nStage 2 - System Analysis\n');
+fprintf('\nSystem Analysis\n');
 
 % stability, controllability, and observability
 results.poles = eig(A);
@@ -131,75 +131,4 @@ fprintf('Maximum similarity error: %.3e; transfer-function error: %.3e\n', ...
     max(forms{1}.similarity_error, forms{2}.similarity_error), ...
     max(forms{1}.tf_error, forms{2}.tf_error));
 
-% zero deviation initial state means starting at the cruise equilibrium
-t = cfg.t(:);
-validateattributes(cfg.analysis_force_step, {'numeric'}, {'real', 'finite', 'scalar', 'positive'});
-validateattributes(cfg.analysis_disturbance_step, {'numeric'}, {'real', 'finite', 'scalar', 'positive'});
-assert(cfg.disturbance_start >= t(1) && cfg.disturbance_start < t(end), ...
-    'Disturbance step must begin within the simulation interval.');
-force_step = cfg.analysis_force_step*ones(size(t));
-disturbance_step = cfg.analysis_disturbance_step*double(t >= cfg.disturbance_start);
-disturbance_sys = ss(A, model.E, C, 0);
-results.t = t;
-results.force_speed = model.x_eq(1) + lsim(model.ss, force_step, t, zeros(n, 1), 'zoh');
-results.disturbance_speed = model.x_eq(1) + lsim(disturbance_sys, disturbance_step, t, zeros(n, 1), 'zoh');
-assert(all(isfinite([results.force_speed; results.disturbance_speed])), ...
-    'Open-loop responses must be finite.');
-
-% save each plot separately
-figure_dir = fullfile(fileparts(mfilename('fullpath')), 'figures', 'stage2');
-if ~exist(figure_dir, 'dir')
-    mkdir(figure_dir);
-end
-results.plot_files = {fullfile(figure_dir, 'force_step_response.png'), ...
-    fullfile(figure_dir, 'disturbance_response.png'), ...
-    fullfile(figure_dir, 'eigenvalues.png')};
-
-% keep figures hidden and protected from close all until export finishes
-force_fig = figure('WindowStyle', 'normal', 'Visible', 'off', 'HandleVisibility', 'off');
-force_ax = axes('Parent', force_fig);
-plot(force_ax, t, results.force_speed, 'LineWidth', 1.5);
-hold(force_ax, 'on');
-yline(force_ax, model.x_eq(1), '--');
-xlabel(force_ax, 'Time (s)'); ylabel(force_ax, 'Vehicle speed (m/s)');
-title(force_ax, sprintf('Open-loop commanded-force step: +%g N at t = 0', cfg.analysis_force_step));
-legend(force_ax, 'Linearized vehicle speed', 'Cruise equilibrium', 'Location', 'best');
-grid(force_ax, 'on');
-drawnow nocallbacks;
-assert(isgraphics(force_fig, 'figure') && isgraphics(force_ax, 'axes'), ...
-    'Commanded-force figure was closed before export.');
-exportgraphics(force_ax, results.plot_files{1}, 'Resolution', 300);
-close(force_fig);
-
-disturbance_fig = figure('WindowStyle', 'normal', 'Visible', 'off', 'HandleVisibility', 'off');
-disturbance_ax = axes('Parent', disturbance_fig);
-plot(disturbance_ax, t, results.disturbance_speed, 'LineWidth', 1.5);
-hold(disturbance_ax, 'on');
-yline(disturbance_ax, model.x_eq(1), '--');
-xline(disturbance_ax, cfg.disturbance_start, ':', 'Disturbance onset', 'HandleVisibility', 'off');
-xlabel(disturbance_ax, 'Time (s)'); ylabel(disturbance_ax, 'Vehicle speed (m/s)');
-title(disturbance_ax, sprintf('Open-loop opposing disturbance step: +%g N', cfg.analysis_disturbance_step));
-legend(disturbance_ax, 'Linearized vehicle speed', 'Cruise equilibrium', 'Location', 'best');
-grid(disturbance_ax, 'on');
-drawnow nocallbacks;
-assert(isgraphics(disturbance_fig, 'figure') && isgraphics(disturbance_ax, 'axes'), ...
-    'Disturbance figure was closed before export.');
-exportgraphics(disturbance_ax, results.plot_files{2}, 'Resolution', 300);
-close(disturbance_fig);
-
-pole_fig = figure('WindowStyle', 'normal', 'Visible', 'off', 'HandleVisibility', 'off');
-pole_ax = axes('Parent', pole_fig);
-plot(pole_ax, real(results.poles), imag(results.poles), 'x', 'MarkerSize', 10, 'LineWidth', 1.5);
-xline(pole_ax, 0, '--', 'HandleVisibility', 'off');
-yline(pole_ax, 0, '--', 'HandleVisibility', 'off');
-xlabel(pole_ax, 'Real part (1/s)'); ylabel(pole_ax, 'Imaginary part (1/s)');
-title(pole_ax, 'Open-loop longitudinal poles');
-legend(pole_ax, 'Eigenvalues of A', 'Location', 'best');
-grid(pole_ax, 'on');
-drawnow nocallbacks;
-assert(isgraphics(pole_fig, 'figure') && isgraphics(pole_ax, 'axes'), ...
-    'Eigenvalue figure was closed before export.');
-exportgraphics(pole_ax, results.plot_files{3}, 'Resolution', 300);
-close(pole_fig);
-assert(all(cellfun(@isfile, results.plot_files)), 'A Stage 2 plot was not saved.');
 end
