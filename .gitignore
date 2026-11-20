@@ -1,5 +1,4 @@
 archive/
-tests/
 *.asv
 *.autosave
 .DS_Store

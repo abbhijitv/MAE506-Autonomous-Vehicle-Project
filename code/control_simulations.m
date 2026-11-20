@@ -47,7 +47,7 @@ results.open_loop = simulate_cruise(cfg, model, controller, 'open_loop');
 results.pid.metrics = performance_metrics(cfg, results.pid);
 results.state_feedback.metrics = performance_metrics(cfg, results.state_feedback);
 
-figure_dir = fullfile(fileparts(mfilename('fullpath')), 'results');
+figure_dir = fullfile(fileparts(fileparts(mfilename('fullpath'))), 'results');
 if ~exist(figure_dir, 'dir')
     mkdir(figure_dir);
 end

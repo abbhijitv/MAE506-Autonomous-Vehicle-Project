@@ -59,7 +59,7 @@ analysis = system_analysis(model, cfg);
 [results, controller] = control_simulations(cfg, model);
 
 % save numerical results
-results.report_file = fullfile(fileparts(mfilename('fullpath')), 'results', 'simulation_results.txt');
+results.report_file = fullfile(fileparts(fileparts(mfilename('fullpath'))), 'results', 'simulation_results.txt');
 save_results(results.report_file, cfg, model, analysis, controller, results);
 saved_files = dir(fileparts(results.report_file));
 saved_files = saved_files(~[saved_files.isdir]);

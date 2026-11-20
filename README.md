@@ -4,13 +4,13 @@
 
 ## Overview
 
-This project models longitudinal vehicle motion and compares exactly two speed controllers: the existing PID implementation in `pid_controller.m` and Ankit Dhara's pole-placement state-feedback design, preserved in the standalone script `cruisecontrol_minimalcode4.m`. Both operate on the same nonlinear vehicle model under identical reference, initial-state, time-grid, actuator, and force-limit conditions.
+This project models longitudinal vehicle motion and compares exactly two speed controllers: the existing PID implementation in `code/pid_controller.m` and Ankit Dhara's pole-placement state-feedback design, preserved in the standalone script `code/cruisecontrol_minimalcode4.m`. Both operate on the same nonlinear vehicle model under identical reference, initial-state, time-grid, actuator, and force-limit conditions.
 
-`main.m` is the single entry point. It displays the model, performs system analysis, runs the controller comparison, exports figures, and prints performance metrics. Earlier project code and outputs are preserved in `archive/` and are not used by the final program.
+`code/main.m` is the single entry point. It displays the model, performs system analysis, runs the controller comparison, exports figures, and prints performance metrics. Earlier project code and outputs are preserved in the local, Git-ignored `archive/` folder and are not needed to run a fresh clone.
 
 ## Getting Started
 
-Requirements: **MATLAB R2026b** and **Control System Toolbox**. Set MATLAB's Current Folder to the repository root and run:
+Requirements: **MATLAB R2026b** and **Control System Toolbox**. Set MATLAB's Current Folder to the repository's `code/` folder and run:
 
 ```matlab
 main
@@ -24,7 +24,7 @@ run('tests/smoke_test.m')
 
 Running `main` saves exactly six files in `results/`: five numbered PNGs at 300 DPI and `simulation_results.txt`. The folder is created automatically, and all six files are overwritten with the current run results. In interactive MATLAB sessions, the five comparison figures remain visible. In `-batch` runs, they stay hidden and close after export. Rerunning the comparison closes only its previously tagged figure windows, leaving unrelated figures alone.
 
-Numerical results remain available in `model`, `analysis`, `controller`, and `results`. No archive folders need to be added to the MATLAB path.
+All active MATLAB code and tests are in `code/`. The six output files remain in the repository-root `results/` folder, regardless of the current working folder. Numerical results remain available in `model`, `analysis`, `controller`, and `results`. No archive folders need to be added to the MATLAB path.
 
 ### Original Standalone Script
 
@@ -35,6 +35,13 @@ cruisecontrol_minimalcode4
 ```
 
 This is the exact original script, including its original system analysis, phase portrait, response plots, comments, reference gain, and formatting. It contains `clear` and `close all`, so run it separately from the final comparison; it resets the workspace and closes existing figures. `main` never executes this script. The standalone script's original plots and scaling are separate from the five final comparison outputs.
+
+From the repository root, the equivalent batch commands are:
+
+```bash
+/Applications/MATLAB_R2026b.app/bin/matlab -batch "run('code/main.m')"
+/Applications/MATLAB_R2026b.app/bin/matlab -batch "run('code/tests/smoke_test.m')"
+```
 
 ## Longitudinal Vehicle Model
 
@@ -58,7 +65,7 @@ The state is `x = [v; Fa]`, where `v` is absolute vehicle speed in m/s and `Fa` 
 | Simulation duration and time step | 120 s and 0.01 s |
 | Commanded-force limits | −6000 to +6000 N |
 
-All settings are defined centrally in `config.m`. They are illustrative modeling assumptions, not experimentally validated vehicle parameters.
+All settings are defined centrally in `code/config.m`. They are illustrative modeling assumptions, not experimentally validated vehicle parameters.
 
 ### Equilibrium and Linearization
 
@@ -91,7 +98,7 @@ The optional disturbance matrix is `E = [-1/m; 0]`, acting on `delta_d = d - d_e
 
 ## System Analysis
 
-`system_analysis.m` retains the existing eigenvalue, controllability, observability, Gramian, and canonical-form calculations. Similarity transformations and transfer-function equivalence are checked numerically. It does not create figures. The original phase portrait remains available only by running the preserved standalone script separately.
+`code/system_analysis.m` retains the existing eigenvalue, controllability, observability, Gramian, and canonical-form calculations. Similarity transformations and transfer-function equivalence are checked numerically. It does not create figures. The original phase portrait remains available only by running the preserved standalone script separately.
 
 | Property | Default result |
 | --- | --- |
@@ -110,7 +117,7 @@ These properties apply to the longitudinal linearization about the cruise equili
 
 ### Existing PID Controller
 
-`pid_controller.m` is preserved without changing its code or gains. It uses equilibrium/feedforward force, a filtered measured-speed derivative, force saturation, and conditional-integration anti-windup.
+`code/pid_controller.m` is preserved without changing its code or gains. It uses equilibrium/feedforward force, a filtered measured-speed derivative, force saturation, and conditional-integration anti-windup.
 
 ```text
 e = v_ref - v
@@ -122,9 +129,9 @@ Defaults are `Kp = 900`, `Ki = 120`, `Kd = 250`, and a 0.1 s derivative-filter t
 
 ### Ankit's Pole-Placement State Feedback
 
-**`cruisecontrol_minimalcode4.m` is restored byte for byte to the original script**, matching Git history and `archive/previous_project/cruisecontrol_minimalcode4.m`. It is not a function and has not been edited to integrate it with `main`.
+**`code/cruisecontrol_minimalcode4.m` is restored byte for byte to the original script**, matching Git history and the byte-preserved reference `code/tests/fixtures/cruisecontrol_minimalcode4.original`. It is not a function and has not been edited to integrate it with `main`.
 
-For the comparison only, `control_simulations.m` reproduces the same specifications, pole calculations, and `place` call using the shared model. It returns the computed design in `controller`, without calling the original script or adding a separate controller file.
+For the comparison only, `code/control_simulations.m` reproduces the same specifications, pole calculations, and `place` call using the shared model. It returns the computed design in `controller`, without calling the original script or adding a separate controller file.
 
 ```text
 Settling_Time = 2 s
@@ -156,7 +163,7 @@ The original script still uses, unchanged:
 Gain = -OpenLoop_Gain/((C*(Acl^-1)*B));
 ```
 
-That makes the reference-to-speed DC gain equal to `OpenLoop_Gain`, about `1/70`, rather than unity. Only the integration block in `control_simulations.m` uses corrected reference scaling, with a linear solve instead of an explicit inverse:
+That makes the reference-to-speed DC gain equal to `OpenLoop_Gain`, about `1/70`, rather than unity. Only the integration block in `code/control_simulations.m` uses corrected reference scaling, with a linear solve instead of an explicit inverse:
 
 ```matlab
 Gain = -1/(C*(Acl\B));
@@ -168,7 +175,7 @@ The 2 s settling time and 7.5% overshoot are unsaturated linear design specifica
 
 ## Simulation and Performance Metrics
 
-`control_simulations.m` reuses the earlier sampled nonlinear cruise simulation and RK4 integration. Each command is held constant for one 0.01 s sample. Both controllers start at `[v0; Fa0] = [0; 0]` and run for 120 s with the same ±6000 N limits. The open-loop comparison uses the same initial states and plant, with a constant target-equilibrium force of 1500 N; it has no feedback.
+`code/control_simulations.m` reuses the earlier sampled nonlinear cruise simulation and RK4 integration. Each command is held constant for one 0.01 s sample. Both controllers start at `[v0; Fa0] = [0; 0]` and run for 120 s with the same ±6000 N limits. The open-loop comparison uses the same initial states and plant, with a constant target-equilibrium force of 1500 N; it has no feedback.
 
 | Metric | Common definition |
 | --- | --- |
@@ -212,26 +219,27 @@ The report is opened in overwrite mode and closed using a function-scoped cleanu
 
 | File or folder | Purpose |
 | --- | --- |
-| `main.m` | Single entry point for modeling, analysis, comparison, and metrics |
-| `config.m` | Shared physical parameters, controller specifications, and metric settings |
-| `vehicle_model.m` | Unchanged nonlinear longitudinal plant, equilibrium, and linear models |
-| `system_analysis.m` | System-property checks and retained Gramians/canonical forms; no figure exports |
-| `pid_controller.m` | Existing PID implementation, unchanged |
-| `cruisecontrol_minimalcode4.m` | Exact original standalone script; run separately from `main` |
-| `control_simulations.m` | Minimal design integration, shared nonlinear simulations, five result figures, and metrics |
-| `tests/smoke_test.m` | Model, reference-scaling, comparison-condition, tracking, and export checks |
+| `code/main.m` | Single entry point for modeling, analysis, comparison, and metrics |
+| `code/config.m` | Shared physical parameters, controller specifications, and metric settings |
+| `code/vehicle_model.m` | Unchanged nonlinear longitudinal plant, equilibrium, and linear models |
+| `code/system_analysis.m` | System-property checks and retained Gramians/canonical forms; no figure exports |
+| `code/pid_controller.m` | Existing PID implementation, unchanged |
+| `code/cruisecontrol_minimalcode4.m` | Exact original standalone script; run separately from `main` |
+| `code/control_simulations.m` | Minimal design integration, shared nonlinear simulations, five result figures, and metrics |
+| `code/tests/smoke_test.m` | Model, reference-scaling, comparison-condition, tracking, and export checks |
+| `code/tests/fixtures/` | Original controller reference bytes used only by the preservation tests |
 | `results/` | Exactly five numbered PNGs and `simulation_results.txt` |
-| `archive/previous_project/` | Original source, comments, configuration, README, tests, and earlier notes |
-| `archive/previous_project/figures/` | Preserved prior local plot outputs |
+| `archive/previous_project/` | Local-only historical source and notes, excluded from Git |
+| `archive/previous_project/figures/` | Local-only prior plot outputs, excluded from Git |
 | `report/`, `presentation/` | Existing draft placeholders for the final deliverables |
 
 Do not add `archive/` recursively to the MATLAB path: its historical functions deliberately retain their original names.
 
 ## Testing
 
-The updated smoke test runs `main` and checks the expected matrices, equilibrium, transfer function, eigenvalues, controllability, observability, Lyapunov residuals, corrected unity reference scaling, and absence of state-feedback integral action. It verifies common initial states/references/time grids, finite histories, commanded and actual force bounds, PID anti-windup, final tracking, and metric consistency. Sampled plant steps are cross-checked against `ode45`. The pole-placement gains are independently checked from the original performance specifications. The original standalone script and PID source are compared with their archived copies. Exactly the five named PNGs and numerical text report must exist in `results/`, with no extra files. Report matrices and metrics are checked against the current calculated values, file-update times are checked for the current run, and the report must be closed after writing. Batch figures must close; interactive comparison figures must remain visible.
+The updated smoke test runs `main` and checks the expected matrices, equilibrium, transfer function, eigenvalues, controllability, observability, Lyapunov residuals, corrected unity reference scaling, and absence of state-feedback integral action. It verifies common initial states/references/time grids, finite histories, commanded and actual force bounds, PID anti-windup, final tracking, and metric consistency. Sampled plant steps are cross-checked against `ode45`. The pole-placement gains are independently checked from the original performance specifications. The original standalone script and PID source are compared with the byte-preserved reference files in `code/tests/fixtures/`, so this test also works in a fresh clone without the local archive. Exactly the five named PNGs and numerical text report must exist in `results/`, with no extra files. Report matrices and metrics are checked against the current calculated values, file-update times are checked for the current run, and the report must be closed after writing. Batch figures must close; interactive comparison figures must remain visible.
 
-Run locally before using the final comparison in the report:
+From the `code/` folder, run locally before using the final comparison in the report:
 
 ```matlab
 main
@@ -240,7 +248,7 @@ run('tests/smoke_test.m')
 
 ## Team and Contributions
 
-The project has four members. Ankit Dhara's state-feedback contribution remains identifiable in `cruisecontrol_minimalcode4.m`; the existing PID contribution remains unchanged in `pid_controller.m`. The earlier complete responsibility plan is preserved in `archive/previous_project/README.md`. The following report and presentation assignments describe the final cruise-control scope rather than a verified history of every code change.
+The project has four members. Ankit Dhara's state-feedback contribution remains identifiable in `code/cruisecontrol_minimalcode4.m`; the existing PID contribution remains unchanged in `code/pid_controller.m`. The earlier complete responsibility plan is preserved in `archive/previous_project/README.md`. The following report and presentation assignments describe the final cruise-control scope rather than a verified history of every code change.
 
 | Team Member | Technical Focus | Final Report | Presentation |
 | --- | --- | --- | --- |
