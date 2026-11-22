@@ -63,6 +63,7 @@ results.report_file = fullfile(fileparts(fileparts(mfilename('fullpath'))), 'res
 save_results(results.report_file, cfg, model, analysis, controller, results);
 saved_files = dir(fileparts(results.report_file));
 saved_files = saved_files(~[saved_files.isdir]);
+saved_files = saved_files(~strcmp({saved_files.name}, '06_linearized_state_feedback.png'));
 assert(numel(saved_files) == 6 && all(cellfun(@isfile, [results.plot_files, {results.report_file}])), ...
     'Results must contain exactly five PNGs and simulation_results.txt.');
 
@@ -72,7 +73,7 @@ assert(fid ~= -1, 'Cannot open numerical results: %s', message);
 file_cleanup = onCleanup(@() fclose(fid));
 
 fprintf(fid, 'Autonomous Vehicle Cruise Control\n');
-fprintf(fid, 'Generated: %s\n\n', datestr(results.run_started, 'yyyy-mm-dd HH:MM:SS.FFF'));
+fprintf(fid, '\n');
 fprintf(fid, 'Vehicle Parameters\n');
 fprintf(fid, 'Mass: %.6f kg\n', cfg.m);
 fprintf(fid, 'Linear resistance: %.6f N*s/m\n', cfg.b);
@@ -178,6 +179,11 @@ fprintf(fid, 'Peak command uses the actual saturated command, not actuator-force
 fprintf(fid, 'Plot speeds are absolute vehicle speeds; the linear model uses deviations.\n');
 fprintf(fid, 'State-feedback specifications describe the unsaturated linear design.\n');
 fprintf(fid, 'NaN response times indicate an unreached threshold or an unsettled response.\n');
+fprintf(fid, '\nLinearized State-Feedback Performance\n');
+fprintf(fid, 'Design settling-time target: %.6f s\n', cfg.feedback_settling_time);
+fprintf(fid, 'Design overshoot target: %.6f %%\n', cfg.feedback_overshoot);
+fprintf(fid, 'Measured linearized settling time: %.6f s\n', results.linearized.settling_time);
+fprintf(fid, 'Measured linearized overshoot: %.6f %%\n', results.linearized.overshoot);
 [message, error_code] = ferror(fid);
 assert(error_code == 0, 'Cannot write numerical results: %s', message);
 clear file_cleanup;

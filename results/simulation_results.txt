@@ -1,5 +1,4 @@
 Autonomous Vehicle Cruise Control
-Generated: 2026-11-20 14:36:07.656
 
 Vehicle Parameters
 Mass: 1500.000000 kg
@@ -128,3 +127,9 @@ Peak command uses the actual saturated command, not actuator-force state.
 Plot speeds are absolute vehicle speeds; the linear model uses deviations.
 State-feedback specifications describe the unsaturated linear design.
 NaN response times indicate an unreached threshold or an unsettled response.
+
+Linearized State-Feedback Performance
+Design settling-time target: 2.000000 s
+Design overshoot target: 7.500000 %
+Measured linearized settling time: 1.910000 s
+Measured linearized overshoot: 7.499276 %

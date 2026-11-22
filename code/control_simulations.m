@@ -147,6 +147,52 @@ for i = 1:2
         metric.rise_time, metric.settling_time, metric.overshoot, ...
         metric.steady_state_error, metric.peak_control);
 end
+
+% ideal linear response
+linear_t = cfg.t(:);
+linear_reference = (cfg.v_ref - model.x_eq(1))*ones(size(linear_t));
+linear_initial = [cfg.v0; cfg.Fa0] - model.x_eq;
+linear_speed = model.x_eq(1) + lsim(controller.CL, linear_reference, linear_t, linear_initial);
+results.linearized.t = linear_t;
+results.linearized.speed = linear_speed;
+
+% settling measurements
+linear_change = cfg.v_ref - cfg.v0;
+linear_band = cfg.settling_threshold*abs(linear_change);
+linear_outside = find(abs(linear_speed - cfg.v_ref) > linear_band, 1, 'last');
+results.linearized.settling_time = NaN;
+if isempty(linear_outside)
+    results.linearized.settling_time = linear_t(1);
+elseif linear_outside < numel(linear_t)
+    results.linearized.settling_time = linear_t(linear_outside + 1);
+end
+results.linearized.overshoot = max(0, 100*(max((linear_speed - cfg.v0)/linear_change) - 1));
+
+% plot linear response
+fig = figure('WindowStyle', 'normal', 'Visible', 'off', 'HandleVisibility', 'off', 'Tag', 'MAE506Comparison');
+ax = axes('Parent', fig);
+plot(ax, linear_t, cfg.v_ref*ones(size(linear_t)), '--', 'LineWidth', 1.5);
+hold(ax, 'on');
+plot(ax, linear_t, linear_speed, 'LineWidth', 1.5);
+yline(ax, cfg.v_ref + linear_band, ':', '+2%', 'HandleVisibility', 'off', 'LabelVerticalAlignment', 'top');
+yline(ax, cfg.v_ref - linear_band, ':', '-2%', 'HandleVisibility', 'off', 'LabelVerticalAlignment', 'bottom');
+xline(ax, cfg.feedback_settling_time, ':', 'Settling-time design target', 'HandleVisibility', 'off');
+xlabel(ax, 'Time (s)'); ylabel(ax, 'Vehicle speed (m/s)');
+title(ax, 'Ideal linearized state-feedback response');
+subtitle(ax, {sprintf('Measured: settling = %.3f s; overshoot = %.4f%%', ...
+    results.linearized.settling_time, results.linearized.overshoot), ...
+    sprintf('Design targets: settling = %.2f s; overshoot = %.1f%%', ...
+    cfg.feedback_settling_time, cfg.feedback_overshoot)});
+legend(ax, 'Desired speed', 'Ideal linearized speed', 'Location', 'best');
+if isfinite(results.linearized.settling_time)
+    linear_plot_end = min(linear_t(end), max(5*cfg.feedback_settling_time, ...
+        2*results.linearized.settling_time));
+    xlim(ax, [linear_t(1), linear_plot_end]);
+end
+grid(ax, 'on');
+results.linearized.figure = fig;
+results.linearized.plot_file = fullfile(figure_dir, '06_linearized_state_feedback.png');
+save_plot(fig, ax, results.linearized.plot_file);
 end
 
 function result = simulate_cruise(cfg, model, controller, method)
